@@ -70,7 +70,8 @@ module.exports = function (grunt) {
           define: true,
           require: true,
           Modernizr: true,
-          Promise: true
+          Promise: true,
+          ApplePaySession: true
         }
       }
     },
@@ -228,6 +229,7 @@ module.exports = function (grunt) {
 
   grunt.registerTask('default', [
     'build',
+    'mozusync:upload',
     'watch:sync'
     ]);
 };

@@ -1,0 +1,18 @@
+
+<!-- Apple Pay Script applePayEnabled {{ themeSettings.applePayEnabled }} Apple Pay Sandbox {{ themeSettings.applePaySandbox }} Merchant ID {{ themeSettings.applePayMerchantId }} -->
+{% if themeSettings.applePayEnabled %}
+    {% if themeSettings.applePaySandbox %}
+        <script type="text/javascript" src="https://esqa.moneris.com/applepayjs/applepay-api.js"></script>
+    {% else %}
+        <script type="text/javascript" src="https://mpg1.moneris.io/applepayjs/applepay-api.js"></script>
+    {% endif %}
+
+    {# Support for third party browsers on iOS 18 #}
+    <script crossorigin src="https://applepay.cdn-apple.com/jsapi/1.latest/apple-pay-sdk.js"></script>
+
+    <div id="moneris-apple-pay" style="display: none;"
+         store-id="{{ themeSettings.applePayStoreId }}" 
+         merchant-identifier="{{ themeSettings.applePayMerchantId }}" 
+         display-name="{{ siteContext.generalSettings.websiteName }}">
+    </div>
+{% endif %} 

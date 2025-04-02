@@ -1,11 +1,22 @@
-﻿# Mozu Core Theme
+﻿# Moneris Apple Pay Test Theme
 
-The Mozu Core theme is the foundation upon which you can build your own Mozu theme. To get started with the Mozu Core theme, refer to the [Theme Asset Management](https://www.mozu.com/docs/developer/dev-center/manage-themes.htm) documentation. Once you're up and running, you can learn how to customize themes using the [Theme QuickStart](https://www.mozu.com/docs/developer/themes/quickstart.htm).
 
-## Release Notes: Merge the Latest Core Updates
+Use https://t100031-s100056.sb.usc1.gcp.kibocommerce.com/p/shrimp as a test product
 
-Mozu continually updates the Core theme. Sometimes, you may have to merge an update from Core into your theme to enable a newly-released feature in Admin or complete the installation of a Mozu application that you obtained through the [Mozu Marketplace](https://www.mozu.com/marketplace).
 
-For the latest enhancements, see the [Release Notes](https://github.com/Mozu/core-theme/blob/master/RELEASE_NOTES.md).
+In Moneris Admin -> Apple Pay, set up your domain
 
+Use simple configuration, it will give you a merchant identifier like:
+
+simple.moneris.t100031-s100056.sb.usc1.gcp.kibocommerce.com
+
+Configure theme settings with your Moneris merchant id and store id
+
+To test you will need a Mac and Sandbox Tester account:
+
+https://appstoreconnect.apple.com/access/users/sandbox
+
+Then add the user, follow instructions in https://developer.apple.com/apple-pay/sandbox-testing/
+
+You can add a test card from this webpage into your apple device
 

@@ -18,117 +18,147 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
   */
 
   var ApplePay = {
-    init: function(style){
-        var self = this;
-        this.isCart = window.location.href.indexOf("cart") > 0;
-        var paymentSettings = _.findWhere(hyprlivecontext.locals.siteContext.checkoutSettings.externalPaymentWorkflowSettings, {"name" : "APPLEPAY"});
-        if ((!paymentSettings || !paymentSettings.isEnabled) || (self.scriptLoaded) || (self.getTotal() === 0)) return;
-        self.scriptLoaded = true;
-        this.multishipEnabled = hyprlivecontext.locals.siteContext.generalSettings.isMultishipEnabled;
-        this.storeName = hyprlivecontext.locals.siteContext.generalSettings.websiteName;
-        // configure button with selected style and language
-        this.setStyle(style);
-        this.setLanguage();
-        /*
-          canMakePayments passes if:
-          - the user is on the most recent version of Safari on OSX sierra or a recent iPad
-          - the user has a wallet set up on a logged-in, up-to-date iPhone (must be iPhone - not iPad)
-        */
-        if (ApplePaySession && ApplePaySession.canMakePayments()){
-            $("#applePayButton").show();
+    init: function (style) {
+      var self = this;
+      self.sessionId = null;
+      this.isCart = window.location.href.indexOf("cart") > 0;
+      var paymentSettings = _.findWhere(hyprlivecontext.locals.siteContext.checkoutSettings.externalPaymentWorkflowSettings, { "name": "APPLEPAY" });
+      if ((!paymentSettings || !paymentSettings.isEnabled) || (self.scriptLoaded) || (self.getTotal() === 0)) return;
+      self.scriptLoaded = true;
+      this.multishipEnabled = hyprlivecontext.locals.siteContext.generalSettings.isMultishipEnabled;
+      this.storeName = hyprlivecontext.locals.siteContext.generalSettings.websiteName;
+      // configure button with selected style and language
+      this.setStyle(style);
+      this.setLanguage();
+      /*
+        canMakePayments passes if:
+        - the user is on the most recent version of Safari on OSX sierra or a recent iPad
+        - the user has a wallet set up on a logged-in, up-to-date iPhone (must be iPhone - not iPad)
+      */
+      if (ApplePaySession && ApplePaySession.canMakePayments()) {
+        //$("#applePayButton").show();
 
-            // when an element is rendered dynamically, any click listeners assigned get removed
-            // so we are assigning our click listener to the document and specifying a selector.
-            // we have safeguards preventing this script from running multiple times, but we've included
-            // an "off" click just in case - if this handler got assigned multiple times, it would try to run
-            // the session maker more than once and initialize more than one apple pay session, causing an error.
-            $(document).off('click', '.apple-pay-button').on('click', '.apple-pay-button', function(event){
-              var request = self.buildRequest();
-              self.session = new ApplePaySession(3, request);
-              self.getOrder().then(function(orderModel){
-              //orderModel is either an ApplePayCheckout or ApplePayOrder
+        var totalAmount = self.getTotal();
+
+        self.applePayToken = new TokenModels.Token({ type: 'APPLEPAY' });
+        self.applePayToken.apiModel.thirdPartyPaymentExecute({
+          methodName: "Session",
+          cardType: "ApplePay",
+          body: {
+            method: 'preload',
+            amount: totalAmount,
+            domain: window.location.hostname
+          }
+        }).then(function (response) {
+          self.sessionId = response.sessionId;
+          window.MonerisApplePay.setTicket(response.preloadTicket);
+          $('#applePayButton').show();
+        });
+
+        // when an element is rendered dynamically, any click listeners assigned get removed
+        // so we are assigning our click listener to the document and specifying a selector.
+        // we have safeguards preventing this script from running multiple times, but we've included
+        // an "off" click just in case - if this handler got assigned multiple times, it would try to run
+        // the session maker more than once and initialize more than one apple pay session, causing an error.
+        $(document).off('click', '.apple-pay-button').on('click', '.apple-pay-button', function (event) {
+          self.getOrder().then(function (orderModel) {
+            var request = {
+              countryCode: 'CA', // or 'US' depending on your market
+              currencyCode: 'CAD', // or 'USD'
+              supportedNetworks: ['visa', 'masterCard', 'amex', 'discover'],
+              merchantCapabilities: ['supports3DS'],
+              total: {
+                label: hyprlivecontext.locals.siteContext.generalSettings.websiteName,
+                type: "final",
+                amount: totalAmount.toFixed(2)
+              },
+              requiredBillingContactFields: [
+                "postalAddress",
+                "name"
+              ],
+              requiredShippingContactFields: [
+                "postalAddress",
+                "name",
+                "phone",
+                "email"
+              ]
+            };
+
+            try {
+              var session = new ApplePaySession(3, request);
               self.orderModel = orderModel;
-              self.applePayToken = new TokenModels.Token({ type: 'APPLEPAY' });
-
-              // first define our ApplePay Session with the version number.
-              // then we define a set of handlers that get called by apple.
-              // after our session object knows how to respond to apple's various events,
-              // we call begin(). The merchant is then validated, initializing
-              // the 'true' session.
-
-              // set handlers. These all get called by apple.
-              self.session.onvalidatemerchant = function(event){
-                  var validationURL = event.validationURL;
-                  self.applePayToken.apiModel.thirdPartyPaymentExecute({
-                      methodName: "Session",
-                      cardType: "ApplePay",
-                      body: {
-                          domain: window.location.hostname,
-                          storeName: self.storeName,
-                          validationURL: validationURL
-                      }
-                    }).then(function(response){
-                    // When apple is finished making this call,
-                    // it opens the payment sheet and automatically selects
-                    // available cards, addresses, and contact info, which triggers
-                    // the following handlers.
-                    self.session.completeMerchantValidation(response);
-
-                  }, function(error){
-                      self.handleError(error);
-                  });
+              var apSessionValidationSuccess = function (response) {
+                session.completeMerchantValidation(response);
               };
-              //these handlers each have a corresponding callback to apple
-              //apple expects us to have changed the price according to
-              //shipping costs at this point so we have to send them
-              // a 'new' amount
+
+              var apSessionValidationError = function (response) {
+                console.error('Failed to validate merchant session', response);
+              };
+
+              session.onvalidatemerchant = function (event) {
+                var validationURL = event.validationURL;
+                window.MonerisApplePay.validateSession(
+                  validationURL,
+                  apSessionValidationSuccess,
+                  apSessionValidationError.bind(self)
+                );
+              };
+
               var selectionPayload = self.completeSelectionPayload();
-              self.session.onpaymentmethodselected = function(event){
-                  self.session.completePaymentMethodSelection(selectionPayload);
+
+              session.onpaymentmethodselected = function (event) {
+                session.completePaymentMethodSelection(selectionPayload);
               };
-              self.session.onshippingcontactselected = function(event) {
-                  self.session.completeShippingContactSelection(selectionPayload);
+              session.onshippingcontactselected = function (event) {
+                session.completeShippingContactSelection(selectionPayload);
               };
-              self.session.onbillingcontactselected = function(event){
-                self.session.completeBillingContactSelection(selectionPayload);
+              session.onbillingcontactselected = function (event) {
+                session.completeBillingContactSelection(selectionPayload);
               };
 
-              //This handler gets called after the user authorizes the wallet payment
-              //on their phone. This is when we receive the payment token from apple.
-              self.session.onpaymentauthorized = function(event) {
+              session.onpaymentauthorized = function (event) {
+                var payment = event.payment;
+
+                event.payment.token.orderId = self.sessionId;
+
                 self.applePayToken.set('tokenObject', event.payment.token);
-                self.applePayToken.apiCreate().then(function(response){
-                  if (!response.isSuccessful){
+                self.applePayToken.apiCreate().then(function (response) {
+                  if (!response.isSuccessful) {
                     self.handleError(null, "Could not create payment token.");
                   } else {
                     var appleBillingContact = event.payment.billingContact;
                     var appleShippingContact = event.payment.shippingContact;
                     var createPaymentPayload = self.buildCreatePaymentPayload(appleBillingContact, appleShippingContact, response.id);
                     var currentPayment = self.orderModel.apiModel.getCurrentPayment() || {};
-                    self.setShippingContact(appleShippingContact).then(function(shippingContactResponse){
-                        self.setShippingMethod().then(function(shippingMethodResponse){
-                            if (!currentPayment.id){
-                              self.applyPayment(createPaymentPayload);
-                            } else {
-                              self.orderModel.apiVoidPayment(currentPayment.id).ensure(function(){
-                                  self.applyPayment(createPaymentPayload);
-                              });
-                          }
-                        }, function(shippingMethodError){
-                            self.handleError(shippingMethodError);
-                        });
-                    }, function(shippingContactError){
-                        self.handleError(shippingContactError);
+                    self.setShippingContact(appleShippingContact).then(function (shippingContactResponse) {
+                      self.setShippingMethod().then(function (shippingMethodResponse) {
+                        if (!currentPayment.id) {
+                          self.applyPayment(session,createPaymentPayload);
+                        } else {
+                          self.orderModel.apiVoidPayment(currentPayment.id).ensure(function () {
+                            self.applyPayment(session, createPaymentPayload);
+                          });
+                        }
+                      }, function (shippingMethodError) {
+                        self.handleError(shippingMethodError);
+                      });
+                    }, function (shippingContactError) {
+                      self.handleError(shippingContactError);
                     });
-                }
-            });
-          };
-          self.session.begin();
+                  }
+                });
+              };
 
-        }); //getorder apicall
-      }); // click handler
-    } // if statement canMakePayments
-  },
+              session.begin();
+
+            } catch (err) {
+              console.error('Error starting Apple Pay session:', err);
+            }
+
+          }); //getorder apicall
+        }); // click handler
+      } // if statement canMakePayments
+    },
     // We only want to get shipping info from the user via applePay if BOTH:
     // 1. We are currently on the cart. When we kick the user to checkout, shipping info will be populated.
     // 2. The cart has items that will be shipped. If it's all pickup items, we don't want to bother asking for shipping info and confuse them.
@@ -173,16 +203,17 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
         // did not work at all. I think it's an issue with Apple. So we aren't using it.
         // Its future implementation isn't off the table though.
     },
-    applyPayment: function(createPaymentPayload){
+    applyPayment: function(session, createPaymentPayload){
       var self = this;
       self.orderModel.apiCreatePayment(createPaymentPayload).then(function(order){
           self.orderModel.set(order.data);
-          self.session.completePayment({"status": 0});
+          session.completePayment(session.STATUS_SUCCESS);
           var id = self.orderModel.get('id');
           var redirectUrl = hyprlivecontext.locals.pageContext.secureHost;
           var checkoutUrl = self.multishipEnabled ? "/checkoutv2" : "/checkout";
           redirectUrl += checkoutUrl + '/' + id;
           window.location.href = redirectUrl;
+
       }, function(createPaymentError){
           self.handleError(createPaymentError);
       });
@@ -446,8 +477,12 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
       Object.keys(supportedCards).forEach(function (key){
           if (supportedCards[key] =="MC"){
             supportedNetworks.push("mastercard");
-          } else {
-            supportedNetworks.push(supportedCards[key].toLowerCase());
+          } else if (supportedCards[key] == "VISA") {
+            supportedNetworks.push("visa");
+          } else if (supportedCards[key] == "AMEX") {
+            supportedNetworks.push("amex");
+          } else if (supportedCards[key] == "DISCOVER") {
+            supportedNetworks.push("discover");
           }
       });
 
@@ -545,12 +580,12 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
           return total.toFixed(2);
     },
     hideOrShowButton: function(){
-      //meant to be called on cart page render; hides the button if total is 0
-      if (this.getTotal() === 0){
-        $('#applePayButton').hide();
-      } else if (ApplePaySession && ApplePaySession.canMakePayments()) {
-        $('#applePayButton').show();
-      }
+      // //meant to be called on cart page render; hides the button if total is 0
+      // if (this.getTotal() === 0){
+      //   $('#applePayButton').hide();
+      // } else if (ApplePaySession && ApplePaySession.canMakePayments()) {
+      //   $('#applePayButton').show();
+      // }
     }
   };
   return ApplePay;

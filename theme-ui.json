@@ -374,6 +374,33 @@
         },
         {
             "xtype": "panel",
+            "title": "Apple Pay Configuration",
+            "collapsed": false,
+            "items": [
+                {
+                    "xtype": "mz-input-checkbox",
+                    "name": "applePayEnabled",
+                    "fieldLabel": "Enable Apple Pay"
+                },
+                {
+                    "xtype": "mz-input-checkbox",
+                    "name": "applePaySandbox",
+                    "fieldLabel": "Use Apple Pay Sandbox Environment"
+                },
+                {
+                    "xtype": "mz-input-text",
+                    "name": "applePayMerchantId",
+                    "fieldLabel": "Apple Pay Merchant ID"
+                },
+                {
+                    "xtype": "mz-input-text",
+                    "name": "applePayStoreId",
+                    "fieldLabel": "Apple Pay Store ID"
+                }
+            ]
+        },
+        {
+            "xtype": "panel",
             "title": "Personalization Configuration",
             "collapsed": false,
             "items": [

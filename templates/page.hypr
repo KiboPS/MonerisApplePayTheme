@@ -37,6 +37,21 @@
 
     {% block head-tag %}
     <head>
+        <!-- Content Security Policy: adjust for production, this is just for development -->
+
+        <meta http-equiv="Content-Security-Policy" content="
+            default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;
+            script-src * 'unsafe-inline' 'unsafe-eval' data: blob:;
+            style-src * 'unsafe-inline' data:;
+            img-src * data: blob:;
+            font-src * data:;
+            connect-src * data: blob: payments-sb.usc1.gcp.kibocommerce.com;
+            frame-src *;
+            object-src *;
+            base-uri *;
+            form-action *;
+            upgrade-insecure-requests;
+        ">
 
         {% include "modules/json-required-for-hyprlive" %}
 

@@ -1256,7 +1256,11 @@
     "useDebugScripts": false,
     "useSearchAutocomplete": true,
     "allowCustomerInitiatedReturns": true,
-    "visaCheckoutSdkUrl": "https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js"
+    "visaCheckoutSdkUrl": "https://sandbox-assets.secure.checkout.visa.com/checkout-widget/resources/js/integration/v1/sdk.js",
+    "applePayEnabled": false,
+    "applePaySandbox": true,
+    "applePayMerchantId": "",
+    "applePayStoreId": ""
   },
   "layoutWidgets": [
     {
