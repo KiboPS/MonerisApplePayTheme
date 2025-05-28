@@ -41,15 +41,41 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
         var totalAmount = self.getTotal();
 
         self.applePayToken = new TokenModels.Token({ type: 'APPLEPAY' });
-        self.applePayToken.apiModel.thirdPartyPaymentExecute({
-          methodName: "Session",
-          cardType: "ApplePay",
-          body: {
-            method: 'preload',
-            amount: totalAmount,
-            domain: window.location.hostname
-          }
+        
+        // Fix https://payments-sb.usc1.gcp.kibocommerce.com/payments/commerce/payments/tokens//ApplePay/execute
+        var serviceUrls = self.applePayToken.apiModel.api.context.getServiceUrls();
+        var tokenServiceUrl = serviceUrls.tokenService;
+        if (tokenServiceUrl.endsWith('/')) {
+          tokenServiceUrl = tokenServiceUrl.slice(0,-1);
+        }
+
+        fetch(tokenServiceUrl+"/ApplePay/execute", {
+          "body": JSON.stringify({
+            "methodName": "Session",
+            "cardType": "ApplePay",
+            "body": {
+              method: 'preload',
+              amount: totalAmount,
+              domain: window.location.hostname
+            }
+          }),
+          "headers": {
+              "Accept": "application/json",
+              "Content-Type": "application/json",
+              "x-vol-catalog": require.mozuData('apicontext').headers['x-vol-catalog'],
+              "x-vol-currency": require.mozuData('apicontext').headers['x-vol-currency'],
+              "x-vol-locale":require.mozuData('apicontext').headers['x-vol-locale'],
+              "x-vol-master-catalog": require.mozuData('apicontext').headers['x-vol-master-catalog'],
+              "x-vol-site": require.mozuData('apicontext').headers['x-vol-site'],
+              "x-vol-tenant": require.mozuData('apicontext').headers['x-vol-tenant']
+          },
+          "method": "POST",
+          "mode": "cors"
         }).then(function (response) {
+          var jsonResponse = response.json();
+          return jsonResponse;
+        }).then(function(response) {
+          console.log(response);
           self.sessionId = response.sessionId;
           window.MonerisApplePay.setTicket(response.preloadTicket);
           $('#applePayButton').show();
