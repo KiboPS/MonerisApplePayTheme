@@ -21,6 +21,7 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
     init: function (style) {
       var self = this;
       self.sessionId = null;
+      self.preloadTicket = null;
       this.isCart = window.location.href.indexOf("cart") > 0;
       var paymentSettings = _.findWhere(hyprlivecontext.locals.siteContext.checkoutSettings.externalPaymentWorkflowSettings, { "name": "APPLEPAY" });
       if ((!paymentSettings || !paymentSettings.isEnabled) || (self.scriptLoaded) || (self.getTotal() === 0)) return;
@@ -77,6 +78,7 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
         }).then(function(response) {
           console.log(response);
           self.sessionId = response.sessionId;
+          self.preloadTicket = response.preloadTicket;
           window.MonerisApplePay.setTicket(response.preloadTicket);
           $('#applePayButton').show();
         });
@@ -146,6 +148,10 @@ function($, Hypr, Api, hyprlivecontext, _, Backbone, CartModels, CheckoutModels,
                 var payment = event.payment;
 
                 event.payment.token.orderId = self.sessionId;
+                event.payment.token.preloadTicket = self.preloadTicket;
+                event.payment.token.storeName = self.storeName;
+                event.payment.token.billingContact = event.payment.billingContact;
+                event.payment.token.shippingContact = event.payment.shippingContact;
 
                 self.applePayToken.set('tokenObject', event.payment.token);
                 self.applePayToken.apiCreate().then(function (response) {
